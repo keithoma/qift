@@ -143,9 +143,34 @@ fun IssueCardScreen() {
                         email = email,
                         amountCents = amountCents,
                         onLoading = { isSubmitting = true },
-                        onSuccess = {
+                        onSuccess = { token, expiryDate ->
                             isSubmitting = false
                             Toast.makeText(context, "Gift Card Issued Successfully!", Toast.LENGTH_LONG).show()
+                            
+                            // Launch Email Intent
+                            val dateFormat = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
+                            val expiryStr = dateFormat.format(expiryDate)
+                            val valueStr = String.format(java.util.Locale.getDefault(), "%.2f", amountCents / 100.0)
+
+                            val emailIntent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
+                                data = android.net.Uri.parse("mailto:")
+                                putExtra(android.content.Intent.EXTRA_EMAIL, arrayOf(email))
+                                putExtra(android.content.Intent.EXTRA_SUBJECT, "Your Restaurant Gift Card is Here!")
+                                putExtra(
+                                    android.content.Intent.EXTRA_TEXT,
+                                    "Hello!\n\nHere is your restaurant gift card for $valueStr €.\n" +
+                                            "This gift card is valid until $expiryStr.\n\n" +
+                                            "You can view and scan your QR code by clicking this link:\n" +
+                                            "https://quickchart.io/qr?text=$token&size=300\n\n" +
+                                            "Enjoy your meal!"
+                                )
+                            }
+                            try {
+                                context.startActivity(emailIntent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "No email app found.", Toast.LENGTH_SHORT).show()
+                            }
+
                             // Reset form
                             email = ""
                             customAmount = ""
@@ -189,7 +214,7 @@ private fun submitGiftCard(
     email: String,
     amountCents: Int,
     onLoading: () -> Unit,
-    onSuccess: () -> Unit,
+    onSuccess: (String, Date) -> Unit,
     onFailure: (String) -> Unit
 ) {
     onLoading()
@@ -231,7 +256,7 @@ private fun submitGiftCard(
             )
             
             firestore.collection("AuditLogs").add(auditLogData)
-                .addOnSuccessListener { onSuccess() }
+                .addOnSuccessListener { onSuccess(token, expiryDate) }
                 .addOnFailureListener { e -> onFailure(e.message ?: "Failed to write audit log") }
         }
         .addOnFailureListener { e ->
