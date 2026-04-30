@@ -1,4 +1,5 @@
 package com.example.qift.navigation
+import com.example.qift.issue.IssueCardScreen
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +12,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+
 
 sealed class AppRoute(val route: String) {
     data object IssueCard : AppRoute("issue_card")
@@ -31,11 +33,6 @@ fun AppNavGraph(
         composable(AppRoute.ScanRedeem.route) { ScanRedeemScreen() }
         composable(AppRoute.AdminDashboard.route) { AdminDashboardScreen() }
     }
-}
-
-@Composable
-fun IssueCardScreen() {
-    ScreenPlaceholder(title = "Issue Card")
 }
 
 @Composable
