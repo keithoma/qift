@@ -151,6 +151,73 @@ app/
 - **Audit Logging**: Complete transaction history for accountability
 - **Admin Protection**: PIN-gated access with confirmation dialogs
 - **Device Tracking**: Logs device ID for all manual edits
+- **Firebase Authentication**: All database operations require authenticated users
+- **App Check**: Uses Play Integrity API to verify app authenticity
+- **Firestore Security Rules**: Server-side validation for all data operations
+
+---
+
+## 🔒 Security Setup
+
+This project includes security measures to protect your Firebase database when the code is public. Follow these steps to configure security:
+
+### 1. Firebase Console Configuration
+
+#### Enable Authentication
+1. Go to Firebase Console → Authentication
+2. Click "Get Started"
+3. Enable "Email/Password" sign-in provider
+4. Create employee accounts for your staff
+
+#### Configure Firestore Security Rules
+1. Go to Firebase Console → Firestore Database → Rules
+2. Copy the contents of `firestore.rules` from this repository
+3. Paste and publish the rules
+4. These rules ensure:
+   - Only authenticated users can read/write data
+   - Data validation for all fields
+   - Audit logs are append-only (no updates/deletes)
+
+#### Enable App Check
+1. Go to Firebase Console → App Check
+2. Register your Android app with package name `com.example.qift`
+3. Enable Play Integrity provider
+4. Copy the App Check token and add it to your Firebase project settings
+
+#### Restrict API Key
+1. Go to Google Cloud Console → APIs & Services → Credentials
+2. Find your Firebase API key
+3. Under "Application restrictions", set:
+   - Package name: `com.example.qift`
+   - SHA-1 certificate fingerprint (from your signing certificate)
+4. Under "API restrictions", select only the Firebase APIs you use
+
+### 2. Local Configuration
+
+#### google-services.json
+- The `google-services.json` file is **NOT** included in this repository
+- Download it from Firebase Console after creating your project
+- Place it in `app/` directory
+- It's already in `.gitignore` to prevent accidental commits
+
+#### SHA-1 Fingerprint
+To get your SHA-1 fingerprint for API key restrictions:
+```bash
+# Debug key
+keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
+
+# Release key (if you have one)
+keytool -list -v -keystore path/to/your/keystore.jks -alias your-alias
+```
+
+### 3. Important Security Notes
+
+- **Never commit** `google-services.json` or any API keys
+- **Always use** Firebase Authentication for all database operations
+- **Enable App Check** in production to prevent unauthorized app usage
+- **Monitor** Firebase usage and set up alerts for suspicious activity
+- **Rotate** API keys periodically if needed
+- **Use** different Firebase projects for development and production
 
 ---
 

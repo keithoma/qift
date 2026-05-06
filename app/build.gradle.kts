@@ -58,6 +58,7 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-appcheck-playintegrity")
 
     val cameraxVersion = "1.4.0"
     implementation("androidx.camera:camera-core:$cameraxVersion")

@@ -1,0 +1,64 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Gift cards collection
+    match /giftCards/{cardId} {
+      // Allow read access only to authenticated users
+      allow read: if request.auth != null;
+      
+      // Allow write access only to authenticated users
+      // Additional validation could be added here for specific fields
+      allow write: if request.auth != null 
+        && request.resource.data.keys().hasAll(['token', 'email', 'initialAmount', 'remainingBalance', 'issueDate', 'expiryDate', 'status'])
+        && request.resource.data.token is string
+        && request.resource.data.token.size() > 0
+        && request.resource.data.email is string
+        && request.resource.data.email.contains('@')
+        && request.resource.data.initialAmount is number
+        && request.resource.data.initialAmount >= 0
+        && request.resource.data.remainingBalance is number
+        && request.resource.data.remainingBalance >= 0
+        && request.resource.data.issueDate is timestamp
+        && request.resource.data.expiryDate is timestamp
+        && request.resource.data.status is string
+        && request.resource.data.status in ['active', 'expired', 'redeemed'];
+    }
+    
+    // Audit logs collection
+    match /auditLogs/{logId} {
+      // Allow read access only to authenticated users
+      allow read: if request.auth != null;
+      
+      // Allow write access only to authenticated users
+      // Audit logs should be append-only (no updates/deletes)
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll(['cardId', 'action', 'timestamp', 'deviceId', 'userId'])
+        && request.resource.data.cardId is string
+        && request.resource.data.cardId.size() > 0
+        && request.resource.data.action is string
+        && request.resource.data.action.size() > 0
+        && request.resource.data.timestamp is timestamp
+        && request.resource.data.deviceId is string
+        && request.resource.data.deviceId.size() > 0
+        && request.resource.data.userId is string;
+      
+      // Prevent updates and deletes to audit logs
+      allow update: if false;
+      allow delete: if false;
+    }
+    
+    // Users collection (for employee accounts)
+    match /users/{userId} {
+      // Users can read their own data
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // Only allow account creation and updates by authenticated users
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      
+      // Prevent deletion of user accounts
+      allow delete: if false;
+    }
+  }
+}

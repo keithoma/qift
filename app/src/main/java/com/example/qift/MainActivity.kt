@@ -13,13 +13,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.qift.navigation.AppNavGraph
 import com.example.qift.ui.theme.QiftTheme
+import com.google.firebase.FirebaseApp
+import com.google.firebase.appcheck.FirebaseAppCheck
+import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Initialize Firebase
+        FirebaseApp.initializeApp(this)
+        
+        // Initialize Firebase App Check with Play Integrity
+        val firebaseAppCheck = FirebaseAppCheck.getInstance()
+        firebaseAppCheck.installAppCheckProviderFactory(
+            PlayIntegrityAppCheckProviderFactory.getInstance()
+        )
+        
         enableEdgeToEdge()
         setContent {
-            QiftTheme { // Your theme name might vary slightly
+            QiftTheme {
                 AppNavGraph()
             }
         }
