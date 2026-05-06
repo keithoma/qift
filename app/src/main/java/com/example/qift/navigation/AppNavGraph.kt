@@ -22,7 +22,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -47,28 +51,26 @@ sealed class AppRoute(val route: String) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavGraph(
-    navController: NavHostController = rememberNavController(),
-    startDestination: String = AppRoute.Login.route
+    navController: NavHostController = rememberNavController()
 ) {
     val auth = FirebaseAuth.getInstance()
-    val currentUser = auth.currentUser
+    var currentUser by remember { mutableStateOf(auth.currentUser) }
     
-    // If user is not logged in and not on login screen, navigate to login
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
-    
-    if (currentUser == null && currentRoute != AppRoute.Login.route) {
-        navController.navigate(AppRoute.Login.route) {
-            popUpTo(AppRoute.Login.route) { inclusive = true }
+    // Listen for auth state changes
+    DisposableEffect(Unit) {
+        val authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+            currentUser = firebaseAuth.currentUser
+        }
+        auth.addAuthStateListener(authStateListener)
+        onDispose {
+            auth.removeAuthStateListener(authStateListener)
         }
     }
 
-    if (currentRoute == AppRoute.Login.route) {
+    if (currentUser == null) {
         LoginScreen(
             onLoginSuccess = {
-                navController.navigate(AppRoute.IssueCard.route) {
-                    popUpTo(AppRoute.Login.route) { inclusive = true }
-                }
+                currentUser = auth.currentUser
             }
         )
     } else {
@@ -79,9 +81,6 @@ fun AppNavGraph(
                     actions = {
                         IconButton(onClick = {
                             auth.signOut()
-                            navController.navigate(AppRoute.Login.route) {
-                                popUpTo(AppRoute.Login.route) { inclusive = true }
-                            }
                         }) {
                             Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Logout")
                         }
@@ -129,7 +128,7 @@ fun AppNavGraph(
         ) { innerPadding ->
             NavHost(
                 navController = navController,
-                startDestination = startDestination,
+                startDestination = AppRoute.IssueCard.route,
                 modifier = Modifier.padding(innerPadding)
             ) {
                 composable(AppRoute.IssueCard.route) { IssueCardScreen() }
