@@ -243,7 +243,7 @@ fun ValidateCardEffect(
                 }
 
                 val status = document.getString("status")
-                if (status != "ACTIVE") {
+                if (status != "active") {
                     onInvalid("Card is not active (Status: $status).")
                     return@addOnSuccessListener
                 }
@@ -263,12 +263,13 @@ fun ValidateCardEffect(
                 // Log a scan event in AuditLogs
                 firestore.collection("AuditLogs").add(
                     mapOf(
-                        "giftCardToken" to token,
+                        "cardId" to token,
                         "action" to "SCAN",
                         "deductedAmount" to 0,
                         "previousBalance" to balance,
                         "newBalance" to balance,
                         "deviceId" to "DEVICE_ID_PLACEHOLDER",
+                        "userId" to "DEVICE_ID_PLACEHOLDER",
                         "timestamp" to Timestamp(Date())
                     )
                 )
@@ -389,7 +390,7 @@ private fun processTransaction(
         }
 
         val newBalance = currentBalance - deductCents
-        val newStatus = if (newBalance == 0) "REDEEMED" else "ACTIVE"
+        val newStatus = if (newBalance == 0) "redeemed" else "active"
 
         // C) Update GiftCard balance
         transaction.update(docRef, "remainingBalance", newBalance)
@@ -398,12 +399,13 @@ private fun processTransaction(
         // D) Write to AuditLogs
         val auditRef = db.collection("AuditLogs").document()
         transaction.set(auditRef, mapOf(
-            "giftCardToken" to token,
+            "cardId" to token,
             "action" to "REDEEM",
             "deductedAmount" to deductCents,
             "previousBalance" to currentBalance,
             "newBalance" to newBalance,
             "deviceId" to "DEVICE_ID_PLACEHOLDER",
+            "userId" to "DEVICE_ID_PLACEHOLDER",
             "timestamp" to Timestamp(Date())
         ))
         

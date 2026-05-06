@@ -233,12 +233,13 @@ private fun submitGiftCard(
 
     // Prepare exactly as per NoSQL Schema
     val giftCardData = mapOf(
-        "customerEmail" to email,
+        "token" to token,
+        "email" to email,
         "initialAmount" to amountCents,
         "remainingBalance" to amountCents,
         "issueDate" to Timestamp(issueDate),
         "expiryDate" to Timestamp(expiryDate),
-        "status" to "ACTIVE"
+        "status" to "active"
     )
 
     firestore.collection("GiftCards").document(token)
@@ -246,12 +247,13 @@ private fun submitGiftCard(
         .addOnSuccessListener {
             // Also log the creation in AuditLogs
             val auditLogData = mapOf(
-                "giftCardToken" to token,
+                "cardId" to token,
                 "action" to "ISSUED",
                 "deductedAmount" to 0,
                 "previousBalance" to 0,
                 "newBalance" to amountCents,
-                "deviceId" to "DEVICE_ID_PLACEHOLDER", // Can be replaced with actual anonymous device ID or logged in user ID later
+                "deviceId" to "DEVICE_ID_PLACEHOLDER",
+                "userId" to "DEVICE_ID_PLACEHOLDER",
                 "timestamp" to Timestamp(Date())
             )
             

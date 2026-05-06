@@ -199,7 +199,7 @@ fun CardListScreen(onCardSelected: (String) -> Unit, onSettingsClick: () -> Unit
             val loadedCards = snapshot.documents.mapNotNull { doc ->
                 GiftCardItem(
                     token = doc.id,
-                    customerEmail = doc.getString("customerEmail") ?: "",
+                    customerEmail = doc.getString("email") ?: "",
                     initialAmount = doc.getLong("initialAmount")?.toInt() ?: 0,
                     remainingBalance = doc.getLong("remainingBalance")?.toInt() ?: 0,
                     issueDate = doc.getTimestamp("issueDate")?.toDate(),
@@ -276,7 +276,7 @@ fun CardDetailScreen(token: String, onBack: () -> Unit) {
             if (doc.exists()) {
                 card = GiftCardItem(
                     token = doc.id,
-                    customerEmail = doc.getString("customerEmail") ?: "",
+                    customerEmail = doc.getString("email") ?: "",
                     initialAmount = doc.getLong("initialAmount")?.toInt() ?: 0,
                     remainingBalance = doc.getLong("remainingBalance")?.toInt() ?: 0,
                     issueDate = doc.getTimestamp("issueDate")?.toDate(),
@@ -289,7 +289,7 @@ fun CardDetailScreen(token: String, onBack: () -> Unit) {
             // If this query fails, check Android Studio Logcat. The error message will contain a direct URL starting with:
             // "https://console.firebase.google.com/..." to click and automatically generate the index.
             val logSnap = db.collection("AuditLogs")
-                .whereEqualTo("giftCardToken", token)
+                .whereEqualTo("cardId", token)
                 .orderBy("timestamp", Query.Direction.DESCENDING)
                 .get().await()
             logs = logSnap.documents.mapNotNull {
@@ -368,7 +368,7 @@ fun CardDetailScreen(token: String, onBack: () -> Unit) {
                                         Text(log.action, fontWeight = FontWeight.Bold, color = if(log.action == "ADMIN_EDIT") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
                                         Text(formatDate(log.timestamp), style = MaterialTheme.typography.bodySmall)
                                     }
-                                    if (log.action == "REDEEMED") {
+                                    if (log.action == "redeemed") {
                                         Text("Deducted: ${formatCentsToEur(log.deductedAmount)}")
                                     }
                                     Text("Balance: ${formatCentsToEur(log.previousBalance)} -> ${formatCentsToEur(log.newBalance)}", style = MaterialTheme.typography.bodyMedium)
@@ -472,7 +472,7 @@ private fun executeOverride(
         val snap = transaction.get(cardRef)
         val prevCents = snap.getLong("remainingBalance")?.toInt() ?: 0
         
-        val newStatus = if (newBalanceCents <= 0) "REDEEMED" else card.status
+        val newStatus = if (newBalanceCents <= 0) "redeemed" else card.status
 
         val updates = mutableMapOf<String, Any>(
             "remainingBalance" to newBalanceCents,
@@ -487,12 +487,13 @@ private fun executeOverride(
         
         val logRef = db.collection("AuditLogs").document()
         val auditData = mapOf(
-            "giftCardToken" to card.token,
+            "cardId" to card.token,
             "action" to "ADMIN_EDIT",
             "previousBalance" to prevCents,
             "newBalance" to newBalanceCents,
             "deductedAmount" to (prevCents - newBalanceCents),
             "deviceId" to Build.MODEL,
+            "userId" to Build.MODEL,
             "timestamp" to Timestamp.now()
         )
         transaction.set(logRef, auditData)
