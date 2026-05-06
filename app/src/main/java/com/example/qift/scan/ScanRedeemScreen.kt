@@ -21,7 +21,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -426,7 +426,7 @@ fun InvalidCardScreen(reason: String, onRetry: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(Icons.Filled.Error, contentDescription = "Invalid", tint = Color(0xFFC62828), modifier = Modifier.size(80.dp))
+        Icon(Icons.Filled.Warning, contentDescription = "Invalid", tint = Color(0xFFC62828), modifier = Modifier.size(80.dp))
         Spacer(modifier = Modifier.height(16.dp))
         Text("INVALID CARD", color = Color(0xFFC62828), fontSize = 32.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(16.dp))
