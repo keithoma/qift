@@ -56,13 +56,13 @@ Qift is a single-venue Android application designed for restaurant employees to 
 
 ## 🛠️ Prerequisites
 
-- Android Studio Hedgehog (2023.1.1) or later
-- JDK 11 or higher
-- Android SDK with API level 36
+- Android Studio (latest stable recommended)
+- JDK 11 (configured via `org.gradle.java.home`; update if you use a different JDK)
+- Android SDK Platform 36 (API 36, extension level 1)
 - A Firebase project with:
   - Firestore Database
   - Authentication (Email/Password)
-  - Google Services configuration file (`google-services.json`)
+  - Google Services configuration file (`google-services.json`) for `com.example.qift`
 
 ---
 
@@ -77,8 +77,8 @@ Qift is a single-venue Android application designed for restaurant employees to 
 2. **Configure Firebase**
    - Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
    - Enable Firestore Database and Authentication
-   - Download `google-services.json` and place it in `app/`
-   - Add your app's package name: `com.example.qift`
+   - Download `google-services.json` for Android and place it in `app/` (replace any existing file)
+   - Use the package name `com.example.qift` (or update `applicationId` in `app/build.gradle.kts`)
 
 3. **Build the project**
    ```bash

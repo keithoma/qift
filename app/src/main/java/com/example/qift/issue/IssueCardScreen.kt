@@ -1,5 +1,8 @@
 package com.example.qift.issue
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -12,9 +15,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.Calendar
 import java.util.Date
 import java.util.UUID
@@ -23,6 +35,7 @@ import java.util.UUID
 @Composable
 fun IssueCardScreen() {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var email by remember { mutableStateOf("") }
     var customAmount by remember { mutableStateOf("") }
     var selectedPreset by remember { mutableStateOf<Int?>(null) }
@@ -146,35 +159,49 @@ fun IssueCardScreen() {
                         onSuccess = { token, expiryDate ->
                             isSubmitting = false
                             Toast.makeText(context, "Gift Card Issued Successfully!", Toast.LENGTH_LONG).show()
-                            
-                            // Launch Email Intent
+
+                            val recipientEmail = email
                             val dateFormat = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
                             val expiryStr = dateFormat.format(expiryDate)
                             val valueStr = String.format(java.util.Locale.getDefault(), "%.2f", amountCents / 100.0)
+                            val qrUrl = "https://quickchart.io/qr?text=$token&size=300"
+                            val emailSubject = "Your Restaurant Gift Card is Here!"
+                            val emailBody =
+                                "Hello!\n\nHere is your restaurant gift card for $valueStr €.\n" +
+                                    "This gift card is valid until $expiryStr.\n\n" +
+                                    "QR link:\n$qrUrl\n\n" +
+                                    "Enjoy your meal!"
 
-                            val emailIntent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
-                                data = android.net.Uri.parse("mailto:")
-                                putExtra(android.content.Intent.EXTRA_EMAIL, arrayOf(email))
-                                putExtra(android.content.Intent.EXTRA_SUBJECT, "Your Restaurant Gift Card is Here!")
-                                putExtra(
-                                    android.content.Intent.EXTRA_TEXT,
-                                    "Hello!\n\nHere is your restaurant gift card for $valueStr €.\n" +
-                                            "This gift card is valid until $expiryStr.\n\n" +
-                                            "You can view and scan your QR code by clicking this link:\n" +
-                                            "https://quickchart.io/qr?text=$token&size=300\n\n" +
-                                            "Enjoy your meal!"
-                                )
-                            }
-                            try {
-                                context.startActivity(emailIntent)
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "No email app found.", Toast.LENGTH_SHORT).show()
-                            }
+                            scope.launch {
+                                val qrUri = withContext(Dispatchers.IO) {
+                                    downloadQrToCache(context, qrUrl, token)
+                                }
 
-                            // Reset form
-                            email = ""
-                            customAmount = ""
-                            selectedPreset = null
+                                val emailIntent = Intent(Intent.ACTION_SEND).apply {
+                                    putExtra(Intent.EXTRA_EMAIL, arrayOf(recipientEmail))
+                                    putExtra(Intent.EXTRA_SUBJECT, emailSubject)
+                                    putExtra(Intent.EXTRA_TEXT, emailBody)
+                                    if (qrUri != null) {
+                                        type = "image/png"
+                                        putExtra(Intent.EXTRA_STREAM, qrUri)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    } else {
+                                        type = "text/plain"
+                                    }
+                                }
+
+                                if (emailIntent.resolveActivity(context.packageManager) != null) {
+                                    val chooser = Intent.createChooser(emailIntent, "Send gift card")
+                                    context.startActivity(chooser)
+                                } else {
+                                    Toast.makeText(context, "No email app found.", Toast.LENGTH_SHORT).show()
+                                }
+
+                                // Reset form
+                                email = ""
+                                customAmount = ""
+                                selectedPreset = null
+                            }
                         },
                         onFailure = { errorMsg ->
                             isSubmitting = false
@@ -217,6 +244,12 @@ private fun submitGiftCard(
     onSuccess: (String, Date) -> Unit,
     onFailure: (String) -> Unit
 ) {
+    val currentUser = FirebaseAuth.getInstance().currentUser
+    if (currentUser == null) {
+        onFailure("You are signed out. Please log in again.")
+        return
+    }
+
     onLoading()
 
     val firestore = Firebase.firestore
@@ -259,9 +292,47 @@ private fun submitGiftCard(
             
             firestore.collection("AuditLogs").add(auditLogData)
                 .addOnSuccessListener { onSuccess(token, expiryDate) }
-                .addOnFailureListener { e -> onFailure(e.message ?: "Failed to write audit log") }
+                .addOnFailureListener { e ->
+                    val message = if (e is FirebaseFirestoreException &&
+                        e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED
+                    ) {
+                        "Access denied. Check login and App Check setup (debug token or Play Integrity)."
+                    } else {
+                        e.message ?: "Failed to write audit log"
+                    }
+                    onFailure(message)
+                }
         }
         .addOnFailureListener { e ->
-            onFailure(e.message ?: "Unknown database error occurred")
+            val message = if (e is FirebaseFirestoreException &&
+                e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED
+            ) {
+                "Access denied. Check login and App Check setup (debug token or Play Integrity)."
+            } else {
+                e.message ?: "Unknown database error occurred"
+            }
+            onFailure(message)
         }
+}
+
+private fun downloadQrToCache(context: Context, qrUrl: String, token: String): Uri? {
+    return try {
+        val connection = (URL(qrUrl).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 10_000
+            readTimeout = 10_000
+            instanceFollowRedirects = true
+        }
+
+        val bytes = connection.inputStream.use { it.readBytes() }
+        val outputFile = File(context.cacheDir, "giftcard-$token.png")
+        outputFile.outputStream().use { it.write(bytes) }
+
+        FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            outputFile
+        )
+    } catch (_: Exception) {
+        null
+    }
 }
